@@ -12,9 +12,6 @@ use constant {
 
 use utf8;
 use 5.16.1;
-use constant {
-    
-};
 use EV;
 use AnyEvent;
 use Mojo::Base -strict;
