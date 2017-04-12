@@ -34,6 +34,7 @@ my %ext_pars=(
     'token'=>{
         'map'=>'token'
     },
+    'bot_username'=>undef,
     'redis_db_n'=>undef,
     'logger'=>undef,
     'passphrase'=>undef
@@ -44,12 +45,15 @@ sub new {
     my $slf={'passphrase'=>DEFAULT_PASS_PHRASE};
     $slf->{(ref($ext_pars{$_}) eq 'HASH' and $ext_pars{$_}{'map'})?$ext_pars{$_}{'map'}:$_}=$pars{$_} 
         for grep defined $pars{$_}, keys %ext_pars;
-    die 'You must provide token to create the '.__PACKAGE__.' object' 
-        unless $slf->{'token'};
-    $slf->{'redc'}=Redis->new;
-    $slf->{'logger'}||=Log::Dispatch->new('outputs'=>[['Screen','min_level' => 'debug', 'newline' => 1, 'stderr' => 1]]);
+
+    my $redc=$slf->{'redc'}=Redis->new;
+    $slf->{'logger'} ||= Log::Dispatch->new('outputs'=>[['Screen','min_level' => 'debug', 'newline' => 1, 'stderr' => 1]]);
     # Select Redis database we need to store our chan_id's
-    $slf->{'redc'}->select($slf->{'redis_db_n'} || REDIS_DB_N);
+    $redc->select($slf->{'redis_db_n'} || REDIS_DB_N);
+    
+    die 'You must provide token to be possible to control the TeleBot'
+        unless $slf->{'token'} ||= $slf->{'bot_username'}?$redc->hget('telebot-tokens', $slf->{'bot_username'}):undef;
+        
     my $teleBot=$slf->{'bot'}=WWW::Telegram::BotAPI->new(
         'token' => $slf->{'token'},
         'async' => 1
@@ -120,12 +124,19 @@ sub fetch_updates {
             $offset = $update->{'update_id'} + 1 if $update->{'update_id'} >= $offset;
             # Handle text messages. No checks are needed because of `allowed_updates`
             my $message=$update->{'message'};
-            my $message_text = $message->{'text'};
-            $log->debug(sprintf("> Incoming message from \@%s:\n>> %s", join(' '=> @{$message->{'from'}}{map $_.'_name', qw(first last)}), $message_text));
+            my $message_text = $message->{'text'} || '<nothing>';
+            $log->debug(sprintf "> Incoming message from \@%s:\n>> %s", join(' '=> @{$message->{'from'}}{map $_.'_name', qw(first last)}), $message_text);
             my ($chat_title,$chat_id)=@{$message->{'chat'}}{'title','id'};
-
             # For this example, we're just going to handle messages containing '/say something'
             given ($message_text) {
+                when (/^<nothing>$/) {
+                    $slf->{'bot'}->sendMessage ({
+                        'chat_id' => $chat_id, 
+                        'text' => $slf->{'chans'}{$chat_id}
+                            ? sprintf('TeleBot %s is ready to send notificatons to your channel', $slf->{'account'}{'first_name'})
+                            : 'You must /auth first to get any notifications from me'
+                    }, sub {});
+                }
                 when (/^\/say(?:\s+(.*))?$/i) {
                     # For this example, we don't care about the result of sendMessage.
                     $slf->{'bot'}->sendMessage ({
@@ -180,9 +191,12 @@ sub bc_mesg {
     }
 }
 
+# Send simple message to channel:
+# $telebot->mesg("channel name","your %s message", "awful", sub { callback });
 sub mesg {
-    my $slf=shift;    
-    my ($chan,$msg)=map { return unless defined() and !ref() and $_ } @_;
+    my ($slf,$chan)=(shift,shift);
+    for ($chan) { return unless defined() and !ref() and $_ };
+
     my $log=$slf->{'logger'};
     return unless my $chan_id=
         (ref $slf->{'chans'} eq 'HASH')
@@ -193,7 +207,36 @@ sub mesg {
                 $log->error('Cant send message: no channels defined yet');
                 undef
               };
-    $slf->{'bot'}->sendMessage({'chat_id'=>$chan_id,'text'=>$msg},ref($_[2]) eq 'CODE'?$_[2]:sub{});
+    my (@msg,$cb);
+    for (@_) {
+        if ( defined() and !ref() ) {
+            push @msg, $_
+        } elsif (ref() eq 'CODE') {
+            $cb=$_; last
+        }
+    }
+    do {
+        $log->error('Cant send message: where is your message, Luke?');
+        return
+    } unless @msg;
+    $slf->{'bot'}->sendMessage({
+            'chat_id'=>$chan_id,
+            'text'=>
+                $#msg
+                    ? $msg[0]=~/(?<!%)%[sdfg]/
+                        ? sprintf($msg[0], @msg[1..$#msg])
+                        : join(' '=>@msg)
+                    : $msg[0]
+        },
+        ($cb || sub{})
+    ); # <- bot->sendMessage()
+}
+
+# Get list of subscribed telegram channels
+sub chans {
+    my $slf=shift;
+    my @ch=ref($slf->{'chans'}{'by_title'}) eq 'HASH'?keys($slf->{'chans'}{'by_title'}):();
+    return wantarray?@ch:\@ch;
 }
 
 sub wrap_async {
