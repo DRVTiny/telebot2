@@ -4,7 +4,7 @@
 
 It is used in production to send alerts from Zabbix to Telegram Chat Groups.
 
-TeleBot2 is based on **WWW::Telegram::BotAPI** by RobertOf and uses only its "async" mode, so it will 
+TeleBot2 is based on **[WWW::Telegram::BotAPI](https://github.com/Robertof/perl-www-telegram-botapi)** by RobertOf and uses only its "async" mode, so it will 
 start Mojo::IOLoop event loop (with EV as backend) itself if you call constructor without "dont_manage_ev_loop" option.
 
 Also, TeleBot2 strongly requires that you specify "logger" option, because otherwise it will use self-initialised Log::Dispatch logger 
@@ -28,4 +28,5 @@ $tb->mesg('CORP.Mon Notifications', 'Something awful require your attention');
 # CONTACTS
 
 Author: Andrey A. Konovalov aka DRVTiny <drvtiny AT google mail DOT com>
+
 Mail me, please, or add an issue if you have any questions/suggestions.
