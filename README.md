@@ -1,6 +1,6 @@
 # DESCRIPTION
 
-**TeleBot2** - is a Telegram bot to send broadcast notifications, such as that you can receive from your monitoring system.
+**TeleBot2** - is a Telegram bot which mainly usage scenario is sending broadcast notifications as a reaction on some external events, such as what you can receive from your monitoring system.
 
 It is used in production to send alerts from Zabbix to Telegram Chat Groups.
 
@@ -13,20 +13,24 @@ Also, TeleBot2 strongly requires that you specify "logger" option, because other
 # EXAMPLE
 
 ```perl
-$logger->logdie('Failed to create TeleBot object')
-  unless my $tb=new TeleBot2(
-    'bot_username'=>$botName,
-    'dont_manage_ev_loop'=>1,
-    'passphrase'=>($botConf->{'passphrase'} || DEFAULT_PASS_PHRASE),
-    'logger'=>$logger,
-  );
+use TeleBot2;
+use YAML;
+my $logger = ...;
+my $botConf = Load(PATH_TO_YAML_CONFIG);
+my $tb = TeleBot2->new(
+    'bot_username' => $botName,
+    'dont_manage_ev_loop' => 1,
+    'passphrase' => ($botConf->{'passphrase'} || DEFAULT_PASS_PHRASE),
+    'logger' => $logger
+) or $logger->logdie('Failed to create TeleBot object');
 $tb->start;
 
 $tb->mesg('CORP.Mon Notifications', 'Something awful require your attention');
+$tb->bc_mesg('To ALL whom concerned: disaster, total destruction, save our souls!');
 ```
 
 # CONTACTS
 
 Author: Andrey A. Konovalov aka DRVTiny <drvtiny AT google mail DOT com>
 
-Mail me, please, or add an issue if you have any questions/suggestions.
+Please, feel free to mail me or add an issue if you have any questions/suggestions.
