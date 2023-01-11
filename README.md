@@ -23,10 +23,16 @@ my $tb = TeleBot2->new(
     'passphrase' => ($botConf->{'passphrase'} || DEFAULT_PASS_PHRASE),
     'logger' => $logger
 ) or $logger->logdie('Failed to create TeleBot object');
+
 $tb->start;
 
-$tb->mesg('CORP.Mon Notifications', 'Something awful require your attention');
-$tb->bc_mesg('To ALL whom concerned: disaster, total destruction, save our souls!');
+Mojo::IOLoop->recurring(10 => sub {
+  $tb->mesg('CORP.Mon Notifications', 'Something awful require your attention');
+  $tb->bc_mesg('To ALL whom concerned: disaster, total destruction, save our souls!');
+});
+
+# Because we denied TeleBot2 to start Mojo::IOLoop by itself using 'dont_manage_ev_loop' option:
+Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
 ```
 
 # CONTACTS
