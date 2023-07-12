@@ -10,6 +10,17 @@ start Mojo::IOLoop event loop (with EV as backend) itself if you call constructo
 Also, TeleBot2 strongly requires that you specify "logger" option, because otherwise it will use self-initialised Log::Dispatch logger 
 (this behaviour is subject for change in the nearest future).
 
+# USAGE
+
+This bot potentialy may (and is intended to) send some business-sensible data, so you **must** authorize first to use this bot in any telegram groups or private chats.
+That is why option "passphrase" exists in constructor.
+
+Add bot to your group chat and issue command
+```
+/auth PASSPHRASE
+```
+Then your chat_id will be registered in the Redis db used by bot, so you will be possible (and will) receive bot's broadcast notifications.
+
 # EXAMPLE
 
 ```perl
